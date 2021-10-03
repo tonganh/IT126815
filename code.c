@@ -24,19 +24,19 @@ NODE *findAnAccount(LIST *l, char userName[100])
     }
     return NULL;
 }
-int checkACcountExisted(LIST *l, char userName[50])
-{
-    NODE *p = l->Head;
-    while (p != NULL)
-    {
-        if (strcmp(userName, p->x.userName) == 0)
-        {
-            return 0;
-        }
-        p = p->next;
-    }
-    return 1;
-}
+// int checkACcountExisted(LIST *l, char userName[50])
+// {
+//     NODE *p = l->Head;
+//     while (p != NULL)
+//     {
+//         if (strcmp(userName, p->x.userName) == 0)
+//         {
+//             return 0;
+//         }
+//         p = p->next;
+//     }
+//     return 1;
+// }
 
 void DLIST(LIST *l)
 {
@@ -58,8 +58,8 @@ void readFile(FILE *f, LIST *l)
         x.totalTimeWrongPassword = 0;
 
         fscanf(f, "%s %s %d", x.userName, x.password, &x.status);
-        int checkAction = checkACcountExisted(l, x.userName);
-        if (checkAction == 0)
+        NODE *checkAccount = findAnAccount(l, x.userName);
+        if (checkAccount != NULL)
         {
             printf("\n======================================\n");
             printf("Username input in line %d have existed. Check you file!\n", lineCheck);
@@ -117,30 +117,19 @@ void writeFileAfterUpdate(LIST *l, FILE *fptr)
 void registerAccount(LIST *l, FILE *fptr)
 {
     char userName[50];
-    int check = 0;
     printf("Type you Username:");
     scanf("%[^\n]%*c", userName);
-    check = checkACcountExisted(l, userName);
-    if (check == 0)
+    if (strlen(userName) <= 1)
+    {
+        printf("Invalid username! Username must have length >=1");
+        return;
+    }
+    NODE *check = findAnAccount(l, userName);
+    if (check != NULL)
     {
         printf("Account existed!\n");
         return;
     }
-    // do
-    // {
-    //     scanf("%[^\n]%*c", userName);
-    //     check = checkACcountExisted(l, userName);
-    //     switch (check)
-    //     {
-    //     case 1:
-    //         break;
-    //     case 0:
-    //         printf("Account existed!\n");
-    //         break;
-    //     default:
-    //         break;
-    //     }
-    // } while (check == 0);
     char password[50];
     printf("Type you Password:");
     scanf("%[^\n]%*c", password);
@@ -204,7 +193,7 @@ NODE *loginAccount(LIST *l)
     {
         if (user->x.status != ACTIVE)
         {
-            printf("You have not permission to login this account.");
+            printf("You have not permission to login this account.\n");
             return NULL;
         }
         user->x.totalTimeWrongPassword = 0;
@@ -277,7 +266,7 @@ void search(LIST *l)
 {
     if (userLoged == NULL)
     {
-        printf("You don't have permission to do this.");
+        printf("You don't have permission to do this.\n");
         return;
     }
     char userName[50];
@@ -343,12 +332,7 @@ void changePassword()
 
 void logOut(LIST *l)
 {
-    char userName[50];
     char password[50];
-    printf("Please enter you account information to login\n");
-
-    printf("UserName:");
-    scanf("%[^\n]%*c", userName);
 
     if (userLoged == NULL)
     {
@@ -356,29 +340,18 @@ void logOut(LIST *l)
         return;
     }
 
+    printf("\n\nUsername: %s \n", userLoged->x.userName);
+
     printf("Password:");
     scanf("%[^\n]%*c", password);
 
-    NODE *user = findAnAccount(l, userName);
-    if (user == NULL)
+    if (strcmp(userLoged->x.password, password) != 0)
     {
-        printf("Cannot find account\n");
+        printf("Wrong password!\n");
         return;
     }
 
-    if (strcmp(user->x.userName, userName) != 0)
-    {
-        printf("Wrong username!");
-        return;
-    }
-
-    if (strcmp(user->x.password, password) != 0)
-    {
-        printf("Wrong password!");
-        return;
-    }
-
-    printf("Good bye %s!\n", user->x.userName);
+    printf("Good bye %s!\n", userLoged->x.userName);
     userLoged = NULL;
     return;
 }
@@ -395,6 +368,9 @@ int main(int argc, char const *argv[])
         exit(0);
     }
     readFile(fp, l);
+
+    fclose(fp);
+
     int n = 0;
 
     do
@@ -406,6 +382,7 @@ int main(int argc, char const *argv[])
         {
         case 1:
             registerAccount(l, fp);
+
             printf("\n\n\n");
             break;
 
@@ -430,11 +407,12 @@ int main(int argc, char const *argv[])
             break;
         }
     } while (n > 0 && n < 7);
-    printf("BYE BYE");
-    fclose(fp);
+
     FILE *fpOpen2 = fopen("nguoidung.txt", "w");
     writeFileAfterUpdate(l, fpOpen2);
+
     fclose(fpOpen2);
+
     Free(l);
 
     return 1;
