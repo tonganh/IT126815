@@ -336,22 +336,21 @@ void changePassword()
 
 void logOut(LIST *l)
 {
-    char password[50];
+    char userName[50];
 
-    if (userLoged == NULL)
+    printf("Username:");
+    scanf("%[^\n]%*c", userName);
+
+    NODE *userWantLogout = findAnAccount(l, userName);
+    if (userWantLogout == NULL)
     {
-        printf("Cannot signed.\n\n");
+        printf("Cannot find account");
         return;
     }
 
-    printf("\n\nUsername: %s \n", userLoged->x.userName);
-
-    printf("Password:");
-    scanf("%[^\n]%*c", password);
-
-    if (strcmp(userLoged->x.password, password) != 0)
+    if (userLoged == NULL || strcmp(userWantLogout->x.userName, userLoged->x.userName) != 0)
     {
-        printf("Wrong password!\n");
+        printf("Account is not sign in\n\n");
         return;
     }
 
