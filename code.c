@@ -90,9 +90,9 @@ void Empty(LIST *l)
     l->Head = NULL;
 }
 
-void writeFileAfterUpdate(LIST *l, FILE *fptr)
+void writeFileAfterUpdate(LIST *l)
 {
-
+    FILE *fptr = fopen("nguoidung.txt", "w");
     NODE *p = l->Head;
     while (p != NULL)
     {
@@ -112,6 +112,7 @@ void writeFileAfterUpdate(LIST *l, FILE *fptr)
         }
         p = p->next;
     }
+    fclose(fptr);
 }
 
 void registerAccount(LIST *l, FILE *fptr)
@@ -141,6 +142,7 @@ void registerAccount(LIST *l, FILE *fptr)
     x.totalTimeWrongPassword = 0;
     Push(l, x);
     printf("\n\nSuccessful registration. Activation required\n\n");
+    writeFileAfterUpdate(l);
 }
 NODE *loginAccount(LIST *l)
 {
@@ -180,6 +182,8 @@ NODE *loginAccount(LIST *l)
         {
             printf("Password is incorrect. Account is blocked.\n\n");
             user->x.status = BLOCKED;
+            writeFileAfterUpdate(l);
+
             return NULL;
             break;
         }
@@ -243,6 +247,7 @@ void activeAccount(LIST *l)
         {
             printf("Account is blocked.\n\n");
             user->x.status = BLOCKED;
+            writeFileAfterUpdate(l);
             break;
         }
         printf("Account is not activated. You have %d times left to enter ", 4 - user->x.totalTimeWrongCode);
@@ -255,7 +260,6 @@ void activeAccount(LIST *l)
     {
         user->x.status = ACTIVE;
         user->x.totalTimeWrongCode = 0;
-        printf("test: %d\n", user->x.status);
         printf("Account is activated!\n\n");
     }
 
@@ -407,11 +411,6 @@ int main(int argc, char const *argv[])
             break;
         }
     } while (n > 0 && n < 7);
-
-    FILE *fpOpen2 = fopen("nguoidung.txt", "w");
-    writeFileAfterUpdate(l, fpOpen2);
-
-    fclose(fpOpen2);
 
     Free(l);
 
