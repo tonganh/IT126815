@@ -9,6 +9,7 @@
 #define HOST_OPTION 2
 void hostname_to_ip(char *);
 void ip_to_host(char *);
+void checkIpInCheckHostNameCase(char *hostname);
 int isValidIpAddress(char *ipAddress)
 {
     struct sockaddr_in sa;
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        printf("Your parameter invalid.\n");
+        printf("Wrong parameter\n");
         exit(1);
     }
 
@@ -46,14 +47,25 @@ int main(int argc, char *argv[])
 	Get ip from domain name
  */
 
+void checkIpInCheckHostNameCase(char *hostname)
+{
+    if (isValidIpAddress(hostname))
+    {
+        printf("Wrong parameter\n");
+        exit(1);
+    }
+}
 void hostname_to_ip(char *hostname)
 {
     struct hostent *he;
     struct in_addr **addr_list;
     int i = 0;
 
-    if ((he = gethostbyname(hostname)) == NULL)
+    checkIpInCheckHostNameCase(hostname);
+
+    if (((he = gethostbyname(hostname)) == NULL))
     {
+        checkIpInCheckHostNameCase(hostname);
         // get the host info
         printf("Not found information\n");
         exit(1);
@@ -72,6 +84,7 @@ void hostname_to_ip(char *hostname)
 void ip_to_host(char *ipInput)
 {
     typedef struct hostent DATA;
+
     typedef struct in_addr ADD;
     DATA *hostname;
     int i;
