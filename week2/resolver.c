@@ -5,6 +5,7 @@
 #include <errno.h> //For errno - the error number
 #include <netdb.h> //hostent
 #include <arpa/inet.h>
+#include <regex.h>
 #define IP_OPTION 1
 #define HOST_OPTION 2
 void hostname_to_ip(char *);
@@ -47,6 +48,28 @@ int main(int argc, char *argv[])
 	Get ip from domain name
  */
 
+int isValidDomain(char *domain)
+{
+    regex_t regex;
+    int reti;
+    reti = regcomp(&regex, "^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,6}$", REG_EXTENDED);
+    if (reti)
+    {
+        printf("Could not compile regex\n");
+        return 1;
+    }
+    else
+    {
+        reti = regexec(&regex, domain, 0, NULL, 0);
+        if (!reti)
+        {
+            return 1;
+        }
+        else
+            return 0;
+    }
+}
+
 void checkIpInCheckHostNameCase(char *hostname)
 {
     if (isValidIpAddress(hostname))
@@ -61,11 +84,10 @@ void hostname_to_ip(char *hostname)
     struct in_addr **addr_list;
     int i = 0;
 
-    checkIpInCheckHostNameCase(hostname);
+    isValidDomain(hostname);
 
     if (((he = gethostbyname(hostname)) == NULL))
     {
-        checkIpInCheckHostNameCase(hostname);
         // get the host info
         printf("Not found information\n");
         exit(1);
