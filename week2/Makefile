@@ -3,7 +3,7 @@ CC = gcc
 LIBS =  -lm 
 
 all: resolver
-resolver: nhat.c
-	${CC}  nhat.c -o resolver
+resolver: hieu.c
+	${CC}  hieu.c -o resolver
 clean:
 	rm -rf *.o *.~ | rm -rf resolver
