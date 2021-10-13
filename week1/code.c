@@ -70,7 +70,7 @@ void readFile(FILE *f, LIST *l)
         lineCheck++;
     }
     printf("\n\nYour file valid! Below is you data after insert:\n\n");
-    DLIST(l);
+    // DLIST(l);
 }
 
 void showMenu()

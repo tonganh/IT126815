@@ -1,3 +1,5 @@
-hedspi1	hedpsi2016	0
-hust	123	1
+anhtn	123	0
+it4062	123456	1
 soict	soictfit	1
+hust	123	0
+hedspi1	hedpsi2016	0
