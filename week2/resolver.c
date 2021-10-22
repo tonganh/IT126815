@@ -11,12 +11,6 @@
 void hostname_to_ip(char *);
 void ip_to_host(char *);
 void checkIpInCheckHostNameCase(char *hostname);
-int isValidIpAddress(char *ipAddress)
-{
-    struct sockaddr_in sa;
-    int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
-    return result != 0;
-}
 
 int main(int argc, char *argv[])
 {
@@ -47,6 +41,13 @@ int main(int argc, char *argv[])
 /*
 	Get ip from domain name
  */
+
+int isValidIpAddress(char *ipAddress)
+{
+    struct sockaddr_in sa;
+    int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
+    return result != 0;
+}
 
 int isValidDomain(char *domain)
 {
