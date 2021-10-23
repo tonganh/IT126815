@@ -1,2 +1,4 @@
-hust hust123 1
-socit soict123 0
+2	2	2
+1	1	1
+soict	123	0
+hust	hust123	1

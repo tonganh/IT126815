@@ -11,8 +11,18 @@
 
 #define PORT 8080
 #define MAXLINE 1024
+#define SUCCESSFULL 1
+#define ERROR 0
 
 NODE *userLoged = NULL;
+int checkingStatus = 0;
+char passwordDigit[MAXLINE];
+char passwordAlpha[MAXLINE];
+
+struct sockaddr_in servaddr, cliaddr;
+int sockfd;
+socklen_t len = sizeof(cliaddr);
+int firstCheckInput = 0;
 void DNODE(DT x)
 {
 	printf("%-30s%-20s%-15d%-10d\n", x.userName, x.password, x.status, x.totalTimeWrongCode);
@@ -73,6 +83,98 @@ NODE *findAnAccount(LIST *l, char userName[100])
 	return NULL;
 }
 
+char *convertValue(long status)
+{
+	switch (status)
+	{
+	case ACTIVE:
+		return "1";
+		break;
+
+	case NOT_EXIST:
+		return "3";
+		break;
+
+	case BLOCKED:
+		return "0";
+		break;
+
+	case WRONG_PASSWORD:
+		return "5";
+		break;
+
+	default:
+		return "0";
+		break;
+	}
+}
+
+int encodePassword(char *password)
+{
+
+	int index1 = 0, index2 = 0;
+	memset(passwordAlpha, 0, sizeof(passwordAlpha));
+	memset(passwordDigit, 0, sizeof(passwordDigit));
+
+	for (int i = 0; i < strlen(password); i++)
+	{
+		// Check digit case
+		if (isdigit(password[i]))
+			passwordDigit[index1++] = password[i];
+		else if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z'))
+			passwordAlpha[index2++] = password[i];
+		else
+		{
+			// Wrong case
+			return 0;
+		}
+	}
+	passwordDigit[index1] = '\0';
+	passwordAlpha[index2] = '\0';
+
+	return 1;
+}
+
+int changePassword(char *newPassword, LIST *l)
+{
+
+	if (!encodePassword(newPassword))
+	{
+		return ERROR;
+	}
+	strcpy(userLoged->x.password, newPassword);
+	writeFileAfterUpdate(l);
+	return SUCCESSFULL;
+}
+
+void actionAfterChangePassword(char *newPassword, LIST *l)
+{
+	int changePasswordStatus = changePassword(newPassword, l);
+
+	// In case have special character => out => send error to client
+	if (changePasswordStatus == ERROR)
+	{
+		sendto(sockfd, (const char *)"Fail", strlen("Fail"),
+			   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
+			   len);
+	}
+	else
+	{
+
+		// Send message
+		sendto(sockfd, (const char *)"SuccessFull", strlen("SuccessFull"),
+			   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
+			   len);
+
+		sendto(sockfd, (const char *)passwordAlpha, strlen(passwordAlpha),
+			   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
+			   len);
+
+		sendto(sockfd, (const char *)passwordDigit, strlen(passwordDigit),
+			   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
+			   len);
+	}
+}
 int loginAccount(LIST *l, char *userName, char *password)
 {
 
@@ -101,9 +203,10 @@ int loginAccount(LIST *l, char *userName, char *password)
 			return BLOCKED;
 		}
 		user->x.totalTimeWrongPassword = 0;
-		printf("Hello %s\n\n\n", user->x.userName);
 		userLoged = user;
+		return ACTIVE;
 	}
+	user->x.totalTimeWrongPassword++;
 	return WRONG_PASSWORD;
 }
 
@@ -130,22 +233,25 @@ void readFile(FILE *f, LIST *l)
 		Push(l, x);
 		lineCheck++;
 	}
-	printf("\n\nYour file valid! Below is you data after insert:\n\n");
-	DLIST(l);
+	// printf("\n\nYour file valid! Below is you data after insert:\n\n");
+	// DLIST(l);
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-	int sockfd;
+
+	if (argc < 2)
+	{
+		printf("Invalid argument. The model using is: ./server {{PORT}}\n");
+		exit(0);
+	}
+	int port = atoi(argv[1]);
+
 	char username[MAXLINE];
 	char password[MAXLINE];
 
 	char *helloFromserver = "Connected ...Insert username and password..\n";
-	char *endConnect = "end";
-	char *next = "next";
 	char *insertPassword = "Insert Password";
-
-	struct sockaddr_in servaddr, cliaddr;
 
 	FILE *fp;
 	LIST *l = (LIST *)malloc(sizeof(LIST));
@@ -163,6 +269,7 @@ int main()
 	// int n = 0;
 
 	// Creating socket file descriptor
+	printf("Server started and listen on PORT: %d\n", port);
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
 		perror("socket creation failed");
@@ -184,13 +291,11 @@ int main()
 		perror("bind failed");
 		exit(EXIT_FAILURE);
 	}
-
-	socklen_t len;
-	len = sizeof(cliaddr); //len is value/resuslt
-
-	recvfrom(sockfd, (char *)username, MAXLINE,
+	char firstHandle[MAXLINE];
+	recvfrom(sockfd, (char *)firstHandle, MAXLINE,
 			 MSG_WAITALL, (struct sockaddr *)&cliaddr,
 			 &len);
+
 	sendto(sockfd, (const char *)helloFromserver, strlen(helloFromserver),
 		   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
 		   len);
@@ -199,19 +304,17 @@ int main()
 	{
 		// Reset string receive
 		memset(username, 0, sizeof(username));
+		// Recv username
 		recvfrom(sockfd, (char *)username, MAXLINE,
 				 MSG_WAITALL, (struct sockaddr *)&cliaddr,
 				 &len);
 
-		printf("Username : %s\n", username);
-
-		if (strcmp(username, "bye") == 0)
+		if (strcmp(username, "") == 0)
 		{
-			sendto(sockfd, (const char *)endConnect, strlen(endConnect),
-				   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
-				   len);
-			break;
+			printf("Turn off server...\n");
+			exit(0);
 		}
+
 		sendto(sockfd, (const char *)insertPassword, strlen(insertPassword),
 			   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
 			   len);
@@ -222,9 +325,46 @@ int main()
 				 MSG_WAITALL, (struct sockaddr *)&cliaddr,
 				 &len);
 
-		printf("Password : %s\n", password);
+		int i_valueAfterLogin = loginAccount(l, username, password);
+		// Check account after submit username and password
+		char *test2 = convertValue(i_valueAfterLogin);
+		sendto(sockfd, (const char *)test2, strlen(test2),
+			   MSG_CONFIRM, (const struct sockaddr *)&cliaddr,
+			   len);
 
-		printf("Status after check: %d\n", loginAccount(l, username, password));
+		char *activeStatus = "1";
+		if (strcmp(test2, activeStatus) == 0)
+		{
+			char passwordWantChange[MAXLINE];
+			memset(passwordWantChange, 0, sizeof(passwordWantChange));
+			// 1st time
+			recvfrom(sockfd, (char *)passwordWantChange, MAXLINE,
+					 MSG_WAITALL, (struct sockaddr *)&cliaddr,
+					 &len);
+
+			if (strcmp(passwordWantChange, "") == 0)
+			{
+				exit(0);
+			}
+			while (strcmp(passwordWantChange, "bye") != 0)
+			{
+				if (strcmp(passwordWantChange, "") == 0)
+				{
+					exit(0);
+				}
+				actionAfterChangePassword(passwordWantChange, l);
+				// Reset string and listen for next action
+				memset(passwordWantChange, 0, sizeof(passwordWantChange));
+				recvfrom(sockfd, (char *)passwordWantChange, MAXLINE,
+						 MSG_WAITALL, (struct sockaddr *)&cliaddr,
+						 &len);
+			}
+
+			if (strcmp(passwordWantChange, "bye") == 0)
+			{
+				userLoged = NULL;
+			}
+		}
 	}
 
 	return 0;

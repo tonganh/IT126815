@@ -14,7 +14,6 @@ typedef struct DT
 {
 	char userName[100];
 	char password[100];
-	char homepageAddress[100];
 	int status;
 	int totalTimeWrongCode;
 	int totalTimeWrongPassword;
