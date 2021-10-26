@@ -24,19 +24,6 @@ NODE *findAnAccount(LIST *l, char userName[100])
     }
     return NULL;
 }
-// int checkACcountExisted(LIST *l, char userName[50])
-// {
-//     NODE *p = l->Head;
-//     while (p != NULL)
-//     {
-//         if (strcmp(userName, p->x.userName) == 0)
-//         {
-//             return 0;
-//         }
-//         p = p->next;
-//     }
-//     return 1;
-// }
 
 void DLIST(LIST *l)
 {
