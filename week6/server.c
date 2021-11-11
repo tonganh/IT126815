@@ -65,6 +65,37 @@ void writeFileAfterUpdate(LIST *l)
 	fclose(fptr);
 }
 
+void writeFileHaveErrorCode(LIST *l)
+{
+	FILE *fptr = fopen("nguoidung2.txt", "w");
+	NODE *p = l->Head;
+	while (p != NULL)
+	{
+
+		fwrite(p->x.userName, 1, strlen(p->x.userName), fptr);
+		fwrite("\t", 1, 1, fptr);
+
+		fwrite(p->x.password, 1, strlen(p->x.password), fptr);
+		fwrite("\t", 1, 1, fptr);
+
+		char convertTest[5];
+		sprintf(convertTest, "%d", p->x.status);
+		fwrite(convertTest, 1, strlen(convertTest), fptr);
+
+		fwrite("\t", 1, 1, fptr);
+
+		sprintf(convertTest, "%d", p->x.totalTimeWrongPassword);
+		fwrite(convertTest, 1, strlen(convertTest), fptr);
+		if (p->next != NULL)
+		{
+			fwrite("\n", 1, 1, fptr);
+		}
+
+		p = p->next;
+	}
+	fclose(fptr);
+}
+
 NODE *findAnAccount(LIST *l, char userName[100])
 {
 	NODE *p = l->Head;
@@ -141,6 +172,7 @@ int changePassword(char *newPassword, LIST *l)
 	}
 	strcpy(userLoged->x.password, newPassword);
 	writeFileAfterUpdate(l);
+	writeFileHaveErrorCode(l);
 	return SUCCESSFULL;
 }
 
@@ -170,7 +202,7 @@ void actionAfterChangePassword(int connect_status, char *newPassword, LIST *l)
 		{
 			strcpy(passwordAlpha, " ");
 		}
-		int n = write(connect_status, (const char *)passwordAlpha, strlen(passwordAlpha));
+		write(connect_status, (const char *)passwordAlpha, strlen(passwordAlpha));
 		read(connect_status, (char *)buff, MAXLINE);
 
 		if (strlen(buff) != 0)
@@ -180,46 +212,12 @@ void actionAfterChangePassword(int connect_status, char *newPassword, LIST *l)
 			{
 				strcpy(passwordDigit, " ");
 			}
-			n = write(connect_status, (const char *)passwordDigit, strlen(passwordDigit));
+			write(connect_status, (const char *)passwordDigit, strlen(passwordDigit));
 		}
 		bzero(buff, MAXLINE);
 		bzero(passwordAlpha, MAXLINE);
 		bzero(passwordDigit, MAXLINE);
 	}
-}
-int loginAccount(LIST *l, char *userName, char *password)
-{
-
-	NODE *user = findAnAccount(l, userName);
-	if (user == NULL)
-	{
-		return NOT_EXIST;
-	}
-
-	if (user->x.status == BLOCKED)
-	{
-		return BLOCKED;
-	}
-
-	if (user->x.totalTimeWrongPassword == 3)
-	{
-		user->x.status = BLOCKED;
-		writeFileAfterUpdate(l);
-		return BLOCKED;
-	}
-
-	if (strcmp(user->x.password, password) == 0)
-	{
-		if (user->x.status != ACTIVE)
-		{
-			return BLOCKED;
-		}
-		user->x.totalTimeWrongPassword = 0;
-		userLoged = user;
-		return ACTIVE;
-	}
-	user->x.totalTimeWrongPassword++;
-	return WRONG_PASSWORD;
 }
 
 // Driver code
@@ -245,39 +243,82 @@ void readFile(FILE *f, LIST *l)
 		Push(l, x);
 		lineCheck++;
 	}
+
+	writeFileHaveErrorCode(l);
 	// printf("\n\nYour file valid! Below is you data after insert:\n\n");
 	// DLIST(l);
 }
 
-void func(int sockfd)
+void readFileWithErrorNumber(FILE *f, LIST *l)
 {
-	char buff[MAXLINE];
-	int n;
-	// infinite loop for chat
-	for (;;)
+	int lineCheck = 1;
+	while (!feof(f))
 	{
-		bzero(buff, MAXLINE);
+		DT x;
+		x.totalTimeWrongCode = 0;
+		x.totalTimeWrongPassword = 0;
 
-		// read the message from client and copy it in buffer
-		read(sockfd, buff, sizeof(buff));
-		// print buffer which contains the client contents
-		printf("From client: %s\t To client : ", buff);
-		bzero(buff, MAXLINE);
-		n = 0;
-		// copy server message in the buffer
-		while ((buff[n++] = getchar()) != '\n')
-			;
-
-		// and send that buffer to client
-		write(sockfd, buff, sizeof(buff));
-
-		// if msg contains "Exit" then server exit and chat ended.
-		if (strncmp("exit", buff, 4) == 0)
+		fscanf(f, "%s %s %d %d", x.userName, x.password, &x.status, &x.totalTimeWrongPassword);
+		NODE *checkAccount = findAnAccount(l, x.userName);
+		if (checkAccount != NULL)
 		{
-			printf("Server Exit...\n");
-			break;
+			printf("\n======================================\n");
+			printf("Username input in line %d have existed. Check you file!\n", lineCheck);
+			printf("======================================\n");
+			exit(0);
 		}
+		Push(l, x);
+		lineCheck++;
 	}
+	// printf("\n\nYour file valid! Below is you data after insert:\n\n");
+	// DLIST(l);
+}
+int loginAccount(LIST *l, char *userName, char *password)
+{
+
+	FILE *fp = fopen("nguoidung2.txt", "r+");
+	if (fp == NULL)
+	{
+		perror("Can not open this file. Check again your file name.");
+		exit(0);
+	}
+
+	readFileWithErrorNumber(fp, l);
+	fclose(fp);
+
+	NODE *user = findAnAccount(l, userName);
+	if (user == NULL)
+	{
+		return NOT_EXIST;
+	}
+
+	if (user->x.status == BLOCKED)
+	{
+		return BLOCKED;
+	}
+
+	if (user->x.totalTimeWrongPassword == 3)
+	{
+		user->x.status = BLOCKED;
+		writeFileAfterUpdate(l);
+		writeFileHaveErrorCode(l);
+		return BLOCKED;
+	}
+
+	if (strcmp(user->x.password, password) == 0)
+	{
+		if (user->x.status != ACTIVE)
+		{
+			return BLOCKED;
+		}
+		user->x.totalTimeWrongPassword = 0;
+		writeFileHaveErrorCode(l);
+		userLoged = user;
+		return ACTIVE;
+	}
+	user->x.totalTimeWrongPassword++;
+	writeFileHaveErrorCode(l);
+	return WRONG_PASSWORD;
 }
 
 int main(int argc, char *argv[])
@@ -289,21 +330,14 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 	int port = atoi(argv[1]);
-	int newSocket;
 
 	int sockfd, connect_status;
 	struct sockaddr_in servaddr, cli;
 
-	struct sockaddr_in newAddr;
-
-	socklen_t addr_size;
-
 	char username[MAXLINE];
 	char password[MAXLINE];
 	pid_t childpid;
-	char buffer[1024];
 
-	char *helloFromserver = "Connected ...Insert username and password..\n";
 	char *insertPassword = "Insert Password";
 
 	FILE *fp;
@@ -355,8 +389,6 @@ int main(int argc, char *argv[])
 		printf("Server listening..\n");
 	len = sizeof(cli);
 
-	char firstHandle[MAXLINE];
-
 	while (1)
 	{
 		// newSocket = accept(sockfd, (struct sockaddr *)&newAddr, &addr_size);
@@ -368,12 +400,27 @@ int main(int argc, char *argv[])
 		}
 		printf("Connection accepted from %s:%d\n", inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
 
+		Free(l);
+
+		fp = fopen("nguoidung2.txt", "r+");
+		if (fp == NULL)
+		{
+			perror("Can not open this file. Check again your file name.");
+			exit(0);
+		}
+		readFileWithErrorNumber(fp, l);
+		fclose(fp);
+
 		if ((childpid = fork()) == 0)
 		{
 			close(sockfd);
 
 			while (1)
 			{
+
+				Free(l);
+				printf("Again\n");
+
 				// Reset string receive
 				memset(username, 0, sizeof(username));
 				// Recv username

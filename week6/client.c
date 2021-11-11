@@ -99,7 +99,6 @@ int main(int argc, char *argv[])
 
     int sockfd;
     char receiveAfterUsername[MAXLINE];
-    char bufferHandleData[MAXLINE];
 
     char *endConnect = "end";
 
@@ -135,19 +134,7 @@ int main(int argc, char *argv[])
     else
         printf("connected to the server..\n");
 
-    int n, m;
-    char test[MAXLINE] = "tong ngoc anh";
-
-    //
-    // func(sockfd);
-    //
-    // Send data from server to client. Confirm we are connecting..
-    // write(sockfd, test, strlen(test));
-
-    // m = read(sockfd, (char *)bufferHandleData, MAXLINE);
-    // printf("Value check receive: %d\n", m);
-    // bufferHandleData[m] = '\0';
-    // printf("Server : %s\n", bufferHandleData);
+    int n;
 
     char userName[50];
     char password[50];
@@ -212,30 +199,31 @@ int main(int argc, char *argv[])
                 if (strcmp(dataAfterChangePW, "Fail") == 0)
                 {
                     printf("Error\n");
-                    exit(0);
                 }
+                else
+                {
 
-                char passwordAlpha[50];
-                char passwordDigit[50];
-                // memset for variable
-                memset(passwordAlpha, '\0', sizeof(passwordAlpha));
-                memset(passwordDigit, '\0', sizeof(passwordDigit));
+                    char passwordAlpha[50];
+                    char passwordDigit[50];
+                    // memset for variable
+                    memset(passwordAlpha, '\0', sizeof(passwordAlpha));
+                    memset(passwordDigit, '\0', sizeof(passwordDigit));
 
-                // Check have password alpha?
-                write(sockfd, (char *)"ready", sizeof("ready"));
+                    // Check have password alpha?
+                    write(sockfd, (char *)"ready", sizeof("ready"));
 
-                read(sockfd, (char *)passwordAlpha, sizeof(passwordAlpha));
-                printf("passwordAlpha: %s\n", passwordAlpha); //In mỗi token ra
+                    read(sockfd, (char *)passwordAlpha, sizeof(passwordAlpha));
+                    printf("passwordAlpha: %s\n", passwordAlpha); //In mỗi token ra
 
-                write(sockfd, (char *)"hello", sizeof("hello"));
-                n = read(sockfd, (char *)passwordDigit, sizeof(passwordDigit));
+                    write(sockfd, (char *)"hello", sizeof("hello"));
+                    n = read(sockfd, (char *)passwordDigit, sizeof(passwordDigit));
 
-                printf("passwordDigit: %s\n", passwordDigit); //In mỗi token ra
+                    printf("passwordDigit: %s\n", passwordDigit); //In mỗi token ra
 
-                // Reset
-                memset(passwordAlpha, 0, sizeof(passwordAlpha));
-                memset(passwordDigit, 0, sizeof(passwordDigit));
-
+                    // Reset
+                    memset(passwordAlpha, 0, sizeof(passwordAlpha));
+                    memset(passwordDigit, 0, sizeof(passwordDigit));
+                }
                 // Reset string
                 memset(&changePassword, 0, sizeof(changePassword));
                 memset(&dataAfterChangePW, 0, sizeof(dataAfterChangePW));
