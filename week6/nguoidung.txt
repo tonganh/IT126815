@@ -1,4 +1,4 @@
-hust	hust123	1
+hust	3	1
 soict	123	0
 1	1	1
 2	2	2
