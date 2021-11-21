@@ -1,0 +1,4 @@
+hust		1
+soict	1	0
+1	asd	0
+2	2	2
