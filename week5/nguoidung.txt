@@ -1,4 +1,4 @@
-hust	ahihi	1
+hust	1	1
 soict	123	0
-1	123	1
+1	2	1
 2	2	2
