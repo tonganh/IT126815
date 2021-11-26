@@ -1,0 +1,16 @@
+Delete:
+#include "tic-tac-toe.h"
+#include "tictactoeRanking.h"
+#include "caroRanking.h"
+#include "clientHelper.h"
+menuCaroGame
+handleTicTacToeAI
+handleTicTacToeGame
+handleCaroRanking
+handleTicTacToeRanking
+menuFunGame
+viewLog
+drawTable
+handleCaroGame
+updateTTTResult
+updateCaroRanking
