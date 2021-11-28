@@ -19,10 +19,12 @@ Library of socket
 #include "linklist.h"
 #include "checkinput.h"
 #include "serverHelper.h"
+#include "caroRanking.h"
+#include "caroai.h"
 
 #define BUFF_SIZE 1024
 
-// fungame
+// ANHTNGAME
 #define SIGNAL_CHECKLOGIN "SIGNAL_CHECKLOGIN"
 #define SIGNAL_CREATEUSER "SIGNAL_CREATEUSER"
 #define SIGNAL_OK "SIGNAL_OK"
@@ -59,6 +61,49 @@ char send_msg[BUFF_SIZE], recv_msg[BUFF_SIZE];
 char token[] = "#";
 char *str;
 int tttResult;
+
+void updateCaroRanking(char *user, int winOrLost)
+{
+  readFileCaroRanking();
+  caronode *tmp = checkUserCaro(user);
+  if (tmp == NULL)
+  { // user ko co trong danh sach
+    userInforCaro caroUser;
+    strcpy(caroUser.username, user);
+    caroUser.numberOfWin = 0;
+    caroUser.numberOfLose = 0;
+    caroUser.numberOfDraws = 0;
+    caroUser.point = 0;
+    insertCaro(caroUser);
+    updateFileCaroRanking();
+    tmp = checkUserCaro(user);
+  }
+
+  if (winOrLost == 1)
+  { // 0 hòa, -1 thua, 1 thắng
+    tmp->user.numberOfWin++;
+    tmp->user.point++;
+    updateFileCaroRanking();
+  }
+  else if (winOrLost == -1)
+  {
+    tmp->user.numberOfLose++;
+    tmp->user.point--;
+    updateFileCaroRanking();
+  }
+  else if (winOrLost == 0)
+  {
+    tmp->user.numberOfDraws++;
+    tmp->user.point = tmp->user.point + 0.5;
+    updateFileCaroRanking();
+  }
+
+  // traversingListCaro();
+  caroroot = NULL;
+  carocur = NULL;
+  caronew = NULL;
+  tmp = NULL;
+}
 
 int handleDataFromClient(int fd)
 {
@@ -117,42 +162,102 @@ int handleDataFromClient(int fd)
     sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
     send(fd, send_msg, strlen(send_msg), 0);
   }
-  else if (strcmp(str, SIGNAL_TICTACTOE) == 0)
+  else if (strcmp(str, SIGNAL_CARO_RANKING) == 0)
   {
-    // Handle tic-tac-toe
+    // Handle caro ranking
     str = strtok(NULL, token);
     id = str;
-    printf("TicTacToe game with id = %s\n", id);
-    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    printf("Caro Ranking with id = %s\n", id);
+    // xu li phan gui thong tin so tran thang, thua, diem
+    readFileCaroRanking();
+    caronode *tmp = checkUserCaro(id);
+    char inforUser[100];
+    if (tmp == NULL)
+      strcpy(inforUser, "-1");
+    else
+    {
+      printf("Username-ID: %s, Win: %d, Lose: %d, Draws: %d, Point: %.1f\n", tmp->user.username, tmp->user.numberOfWin, tmp->user.numberOfLose, tmp->user.numberOfDraws, tmp->user.point);
+      sprintf(inforUser, "%d#%d#%d#%f", tmp->user.numberOfWin, tmp->user.numberOfLose, tmp->user.numberOfDraws, tmp->user.point);
+    }
+    // traversingListCaro(); // duyet danh sach caroRanking in ra phia server
+    caroroot = NULL;
+    carocur = NULL;
+    caronew = NULL;
+    tmp = NULL;
+    sprintf(send_msg, "%s#%s#%s", SIGNAL_OK, id, inforUser);
     send(fd, send_msg, strlen(send_msg), 0);
   }
-  else if (strcmp(str, SIGNAL_TICTACTOE_AI) == 0)
+  else if (strcmp(str, SIGNAL_CARO_TURN) == 0)
   {
-    // Handle tic-tac-toe
-    str = strtok(NULL, token);
-    id = str;
-    printf("TicTacToe game with id = %s, computer is processing...\n", id);
-    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
-    send(fd, send_msg, strlen(send_msg), 0);
+    // Quay về server để xử lí game caro
+    id = strtok(NULL, token);   // get game id
+    user = strtok(NULL, token); // get user name
+
+    str = strtok(NULL, token); // //get column
+    col = atoi(str);
+
+    str = strtok(NULL, token); //get row
+    row = atoi(str);
+    printf("Received a turn of game id = %s, user = %s : column = %d, row = %d\n", id, user, col, row);
+    // set table
+    info = getInfo(id);
+    if (info != NULL)
+    {
+      setTable(info->table, info->size, -99, -100);
+      // write log
+      writeLog(info->logfile, col, row, 1);
+      // player win
+      if (playerMove(col, row) == 1)
+      {
+        printf("Player win\n");
+        updateCaroRanking(user, 1); // update caro Ranking, win = 1
+        strcpy(send_msg, SIGNAL_CARO_WIN);
+        send(fd, send_msg, strlen(send_msg), 0);
+      }
+      else if (cpuMove(&col, &row) == 0)
+      {
+        //write log
+        writeLog(info->logfile, col, row, 0);
+        printf("Send a turn : column = %d, row = %d\n", col, row);
+        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN, col, row);
+        send(fd, send_msg, strlen(send_msg), 0);
+      }
+      else
+      {
+        //write log
+        writeLog(info->logfile, col, row, 0);
+        printf("Send a turn : column = %d, row = %d\n", col, row);
+        updateCaroRanking(user, -1); // update caro Ranking, lost = -1
+        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_LOST, col, row);
+        send(fd, send_msg, strlen(send_msg), 0);
+      }
+    }
+    else
+    {
+      printf("Request a turn of game with id = %s REQUEST FAILED!\n", id);
+      sprintf(send_msg, "%s#%s%s%s", SIGNAL_ERROR, "Game with id=", id, "not existed");
+      send(fd, send_msg, strlen(send_msg), 0);
+    }
   }
-  else if (strcmp(str, SIGNAL_TTT_RESULT) == 0)
-  { // 0 hòa, 1 thua, -1 thắng
-    // Handle tic-tac-toe result
-    str = strtok(NULL, token);
-    id = str;
-    str = strtok(NULL, token);
-    tttResult = atoi(str);
-    char resultString[50];
-    if (tttResult == 0)
-      strcpy(resultString, "You Draws");
-    else if (tttResult == 1)
-      strcpy(resultString, "You Lost");
-    else if (tttResult == -1)
-      strcpy(resultString, "You Win");
-    printf("TicTacToe game with id = %s, Result: %s\n", id, resultString);
-    // xu li file TTTranking, update file
-    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
-    send(fd, send_msg, strlen(send_msg), 0);
+  else if (strcmp(str, SIGNAL_CARO_VIEWLOG) == 0)
+  {
+    // View log
+    // get id-username
+    id = strtok(NULL, token);
+    info = getInfo(id);
+    if (info != NULL)
+    {
+      printf("Request view log of caro game with id = %s | OK!\n", id);
+      sprintf(send_msg, "%s#%s", SIGNAL_LOGLINE, info->logfile);
+      send(fd, send_msg, strlen(send_msg), 0);
+    }
+    else
+    {
+      printf("Request view log of caro game with id = %s | FAILED!!!\n", id);
+      printf("Game with id = %s not existed", id);
+      sprintf(send_msg, "%s#%s%s%s", SIGNAL_ERROR, "Game with id=", id, "not existed");
+      send(fd, send_msg, strlen(send_msg), 0);
+    }
   }
   else if (strcmp(str, SIGNAL_CARO_ABORTGAME) == 0)
   {
@@ -173,7 +278,6 @@ int handleDataFromClient(int fd)
     send(fd, send_msg, strlen(send_msg), 0);
   }
 }
-
 int main(int argc, char *argv[])
 {
   if (argc != 2)
@@ -227,7 +331,7 @@ int main(int argc, char *argv[])
     perror("Listen error\n");
     exit(-4);
   }
-  printf("FUNGAME waiting for client on port %d\n", PORT);
+  printf("ANHTNGAME waiting for client on port %d\n", PORT);
   fflush(stdout);
 
   FD_SET(sock, &master);

@@ -25,6 +25,7 @@ https://www.daemon-systems.org/man/tcgetattr.3.html
 #include <signal.h>
 #include <errno.h>
 
+#include "caroRanking.h"
 #include "linklist.h"
 #include "checkinput.h"
 
@@ -33,9 +34,9 @@ int VIEWSIZE = 15;
 
 #include "clientHelper.h"
 
-// fungame
+// ANHTNGAME
 #define STATUS_START_MENU 0
-#define STATUS_FUNGAME_MENU 1
+#define STATUS_ANHTNGAME_MENU 1
 #define STATUS_HANDLE_GAME 2
 #define SIGNAL_CHECKLOGIN "SIGNAL_CHECKLOGIN"
 #define SIGNAL_CREATEUSER "SIGNAL_CREATEUSER"
@@ -67,6 +68,10 @@ int VIEWSIZE = 15;
 // tictactoe ranking
 #define SIGNAL_TTT_RANKING "SIGNAL_TTT_RANKING"
 
+#define PLAY_CARO 1
+#define PLAY_TICTACTOE 2
+#define CARO_RANKING 3
+
 // client connect to server
 struct sockaddr_in server_addr;
 int PORT, sock, recieved, isCommunicating;
@@ -74,7 +79,7 @@ char *serverAddress;
 char send_msg[BUFF_SIZE], recv_msg[BUFF_SIZE];
 
 // client variable
-int status; // status of fungame
+int status; // status of ANHTNGAME
 char choice, token[] = "#";
 char error[100], user[100], id[30];
 
@@ -155,7 +160,7 @@ int menuSignin()
     while (1)
     {
         clearScreen();
-        printf("----------FUNGAME----------\n");
+        printf("----------ANHTNGAME----------\n");
         printf("\tSign in\n");
         printf("---------------------------\n");
         if (error[0] != '\0')
@@ -223,7 +228,7 @@ int menuRegister()
     while (1)
     {
         clearScreen();
-        printf("----------FUNGAME----------\n");
+        printf("----------ANHTNGAME----------\n");
         printf("\tRegister\n");
         printf("---------------------------\n");
         if (error[0] != '\0')
@@ -298,7 +303,7 @@ int menuStart()
             printf("Error: %s!\n", error);
             error[0] = '\0';
         }
-        printf("----------FUNGAME----------\n");
+        printf("----------ANHTNGAME----------\n");
         printf("\t1.Sign in\n");
         printf("\t2.Register\n");
         printf("\t3.Exit\n");
@@ -334,7 +339,159 @@ int menuStart()
     return 0;
 }
 
-int menuFunGame()
+/*
+Hiển thị phần game caro, chọn size để chơi
+*/
+int menuCaroGame()
+{
+    error[0] = '\0';
+    char *str;
+    while (1)
+    {
+        clearScreen();
+        printf("----------ANHTNGAME----------\n");
+        printf("\033[0;33m\tUsername: %s \033[0;37m\n", user);
+        printf("\tNEW CARO GAME\n");
+        printf("---------------------------\n");
+        if (error[0] != '\0')
+        {
+            printf("Error: %s!\n", error);
+            printf("Do you want to try again? (y or n): ");
+            choice = getchar();
+            while (getchar() != '\n')
+                ;
+            if (choice == 'n' || choice == 'N')
+            {
+                error[0] = '\0';
+                return -1;
+            }
+            else if (choice != 'y' && choice != 'Y')
+                continue;
+            else
+            {
+                error[0] = '\0';
+                continue;
+            }
+        }
+        printf("Enter size of table (from 15 to 25): ");
+        scanf("%d", &size);
+        VIEWSIZE = size;
+        while (getchar() != '\n')
+            ;
+        if (size >= 15 && size <= 25)
+        {
+            sprintf(send_msg, "%s#%d#%s", SIGNAL_CARO_NEWGAME, size, user);
+            if (connectToServer() == 0)
+            {
+                str = strtok(recv_msg, token);
+                if (strcmp(str, SIGNAL_OK) == 0)
+                {
+                    str = strtok(NULL, token);
+                    strcpy(id, str);
+                    //init table
+                    table = malloc(size * size);
+                    for (int i = 0; i < size * size; i++)
+                    {
+                        table[i] = ' ';
+                    }
+                    break;
+                }
+                else if (strcmp(str, SIGNAL_ERROR) == 0)
+                {
+                    str = strtok(NULL, token);
+                    strcpy(error, str);
+                }
+            }
+            else
+            {
+                printf("Error! Cant connect to server!\n");
+            }
+        }
+        else
+        {
+            sprintf(error, "Size %d | size error!!!", size);
+        }
+    }
+    return 0;
+}
+
+/*
+Xử lý phần xếp hạng caro game
+*/
+int handleCaroRanking()
+{
+    char *str;
+    error[0] = '\0';
+
+    clearScreen();
+    printf("----------ANHTNGAME----------\n");
+    printf("\033[0;33m\tUsername: %s \033[0;37m\n", user);
+    printf("--------Caro Ranking--------\n");
+    printf("Your information: \n");
+
+    sprintf(send_msg, "%s#%s", SIGNAL_CARO_RANKING, user);
+    if (connectToServer() == 0)
+    {
+        str = strtok(recv_msg, token);
+        if (strcmp(str, SIGNAL_OK) == 0)
+        {
+            str = strtok(NULL, token);
+            strcpy(id, str);
+            int numberOfWin, numberOfLose, numberOfDraws;
+            float point;
+
+            str = strtok(NULL, token);
+            numberOfWin = atoi(str);
+
+            if (numberOfWin == -1)
+            {
+                printf("You haven't played yet Caro. You are not in the ranking.\n");
+            }
+            else
+            {
+                str = strtok(NULL, token);
+                numberOfLose = atoi(str);
+                str = strtok(NULL, token);
+                numberOfDraws = atoi(str);
+                str = strtok(NULL, token);
+                point = atof(str);
+                printf("\t%-20s: %s\n", "Username-ID", id);
+                printf("\t%-20s: %d\n", "Number Of Wins", numberOfWin);
+                printf("\t%-20s: %d\n", "Number Of Losses", numberOfLose);
+                printf("\t%-20s: %d\n", "Number Of Draws", numberOfDraws);
+                printf("\t%-20s: %.1f\n", "Point", point);
+            }
+            printf("------------------------------\n");
+            printf("Caro Ranking\n");
+            printf("------------------------------------------------------------\n");
+            readFileCaroRanking();
+            printf("%-5s%-20s%-10s%-10s%-10s%-10s\n", "TOP", "ID", "Win", "Lose", "Draw", "Point");
+            if (numberOfWin == -1)
+                printfCaroRankingNotID();
+            else
+                printfCaroRanking(id);
+            caroroot = NULL;
+            carocur = NULL;
+            caronew = NULL;
+        }
+    }
+    else
+    {
+        printf("Error! Cant connect to server!\n");
+    }
+    printf("Press 'q' to quit: ");
+    choice = getchar();
+    while (getchar() != '\n')
+        ;
+    if (choice == 'q' || choice == 'Q')
+        return 1;
+    else
+        return 1;
+}
+/*
+Hiển thị phần xử lí game, chọn game caro hay tic-tok-toe
+*/
+int menuANHTNGAME()
 {
     error[0] = '\0';
     while (1)
@@ -345,7 +502,7 @@ int menuFunGame()
             printf("Error: %s!\n", error);
             error[0] = '\0';
         }
-        printf("----------FUNGAME----------\n");
+        printf("----------ANHTNGAME----------\n");
         printf("\033[0;33m\tWelcome %s \033[0;37m\n", user);
         printf("\t1.Caro game\n");
         printf("\t2.TicTacToe game\n");
@@ -359,24 +516,26 @@ int menuFunGame()
             ;
         if (choice == '1')
         {
-            checkCaroOrTicTacToe = 1;
-            break;
+            checkCaroOrTicTacToe = PLAY_CARO;
+            if (menuCaroGame() == 0)
+                break;
         }
-        else if (choice == '2')
-        {
-            printf("hello!\n");
-            break;
-        }
+        // else if (choice == '2')
+        // {
+        //     checkCaroOrTicTacToe = 2;
+        //     if (handleTicTacToeGame() == 0)
+        //         break;
+        // }
         else if (choice == '3')
         {
-            checkCaroOrTicTacToe = 3;
+            checkCaroOrTicTacToe = CARO_RANKING;
             break;
         }
-        else if (choice == '4')
-        {
-            checkCaroOrTicTacToe = 4;
-            break;
-        }
+        // else if (choice == '4')
+        // {
+        //     checkCaroOrTicTacToe = 4;
+        //     break;
+        // }
         else if (choice == '5')
         {
             return -1;
@@ -386,6 +545,265 @@ int menuFunGame()
             sprintf(error, "%c Not an optional", choice);
         }
     }
+    return 0;
+}
+
+/*
+View log
+*/
+int viewLog()
+{
+    char usernameLog[100], *str;
+
+    sprintf(send_msg, "%s#%s", SIGNAL_CARO_VIEWLOG, id);
+    if (connectToServer() == 0)
+    {
+        // get file name
+        int j = 0;
+        for (int i = 15; i < strlen(recv_msg); i++)
+        {
+            usernameLog[j] = recv_msg[i];
+            if (recv_msg[i] == '\0')
+                break;
+            j++;
+        }
+        usernameLog[j] = '\0';
+
+        str = strtok(recv_msg, token);
+
+        if (strcmp(str, SIGNAL_LOGLINE) == 0)
+        {
+            str = strtok(NULL, token);
+            printf("Username: %s ", str);
+
+            str = strtok(NULL, token);
+            printf("- SessionID: %s\n", str);
+            str = strtok(NULL, token); // address
+            // printf(" - Address: %s\n", str);
+            str = strtok(NULL, token);
+            printf("Day: %s ", str);
+            str = strtok(NULL, token);
+            str[strlen(str) - 4] = '\0';
+            printf("- Time: %s\n", str);
+        }
+        else if (strcmp(str, SIGNAL_ERROR) == 0)
+        {
+            strcpy(send_msg, SIGNAL_CLOSE);
+            send(sock, send_msg, strlen(send_msg), 0);
+            close(sock);
+            isCommunicating = 0;
+            str = strtok(NULL, token);
+            strcpy(error, str);
+            return -1;
+        }
+        printLog(usernameLog); // in log
+    }
+    else
+    {
+        printf("Error! Cant connect to server!\n");
+    }
+
+    printf("Press 'q' to quit: ");
+    choice = getchar();
+    while (getchar() != '\n')
+        ;
+    if (choice == 'q' || choice == 'Q')
+        return 0;
+    else
+        return 0;
+}
+
+void drawTable()
+{
+    int i, j, k;
+    printf("   ");
+    for (i = 0; i < VIEWSIZE; i++)
+    {
+        if (i < 10)
+            printf("%d  ", i);
+        else
+            printf("%d ", i);
+    }
+    printf("\n");
+
+    for (i = 0; i < VIEWSIZE; i++)
+    {
+        if (i < 10)
+            printf("%d  ", i);
+        else
+            printf("%d ", i);
+
+        for (j = 0; j < VIEWSIZE; j++)
+        {
+            if (i == row && j == col)
+            {
+                printf("\033[0;37m[\033[0;37m%c\033[0;37m]", table[i * size + j]); // white
+            }
+            else
+            {
+                if (table[i * size + j] == 'x')
+                    printf("\033[0;36m[\033[0;33m%c\033[0;36m]", table[i * size + j]); // yellow
+                else if (table[i * size + j] == 'o')
+                    printf("\033[0;36m[\033[0;31m%c\033[0;36m]", table[i * size + j]); // red
+                else
+                    printf("\033[0;36m[\033[0;35m%c\033[0;36m]", table[i * size + j]); // bue
+            }
+        }
+        printf("\n");
+    }
+}
+
+int handleCaroGame()
+{
+    char c, info[100], *str;
+    setCustomTerminal();
+    error[0] = '\0';
+    info[0] = '\0';
+
+    playerTurn = 1;
+    col = size / 2;
+    row = size / 2;
+    while (1)
+    {
+        clearScreen();
+        printf("\033[0;37m----------CARO GAME----------\n");
+        printf("\033[0;33m\tUsername: %s - GameID = %s\033[0;37m\n", user, id);
+        printf("\tPress w,a,s,d to move \n");
+        printf("\tPress enter to select\n");
+        printf("\tPress 'q' to quit\n");
+        printf("-----------------------------\n");
+        drawTable();
+        if (playerTurn)
+        {
+            if (error[0] != '\0')
+            {
+                setDefaultTerminal();
+                printf("Error: %s!\n", error);
+                printf("Do you want to try again? (y or n)\n");
+                printf("Your choice: ");
+                choice = getchar();
+                while (getchar() != '\n')
+                    ;
+                if (choice == 'n' || choice == 'N')
+                {
+                    error[0] = '\0';
+                    return -1;
+                }
+                else if (choice == 'y' || choice == 'Y')
+                {
+                    error[0] = '\0';
+                    if (info[0] == '\0')
+                        playerTurn = 0;
+                    else if (strcmp(info, CARO_INFO_WIN) == 0 || strcmp(info, CARO_INFO_LOST) == 0)
+                    {
+                        if (choice == 'y' || choice == 'Y')
+                        {
+                            if (viewLog() == 0)
+                            {
+                                sprintf(send_msg, "%s#%s#%s", SIGNAL_CARO_ABORTGAME, id, user);
+                                connectToServer();
+                                return -1;
+                            }
+                        }
+                    }
+                }
+                setCustomTerminal();
+            }
+            else if (info[0] != '\0')
+            {
+                setDefaultTerminal();
+
+                printf("\033[0;37m%s\n", info);
+                printf("Your choice: ");
+                choice = getchar();
+                while (getchar() != '\n')
+                    ;
+                if (choice == 'n' || choice == 'N')
+                {
+                    if (strcmp(info, CARO_INFO_QUIT) == 0)
+                        info[0] = '\0';
+                    else if (strcmp(info, CARO_INFO_WIN) == 0 || strcmp(info, CARO_INFO_LOST) == 0)
+                    {
+                        sprintf(send_msg, "%s#%s#%s", SIGNAL_CARO_ABORTGAME, id, user);
+                        connectToServer();
+                        return -1;
+                    }
+                }
+                else if (choice == 'y' || choice == 'Y')
+                {
+                    if (strcmp(info, CARO_INFO_QUIT) == 0)
+                    {
+                        sprintf(send_msg, "%s#%s#%s", SIGNAL_CARO_ABORTGAME, id, user);
+                        connectToServer();
+                        return -1;
+                    }
+                    else if (strcmp(info, CARO_INFO_WIN) == 0 || strcmp(info, CARO_INFO_LOST) == 0)
+                    {
+                        if (viewLog() == 0)
+                        {
+                            sprintf(send_msg, "%s#%s#%s", SIGNAL_CARO_ABORTGAME, id, user);
+                            connectToServer();
+                            return -1;
+                        }
+                    }
+                }
+                setCustomTerminal();
+            }
+            else
+            {
+                c = getchar();
+                if (c == 'w' && row > 0)
+                    row--;
+                else if (c == 's' && row < size - 1)
+                    row++;
+                else if (c == 'd' && col < size - 1)
+                    col++;
+                else if (c == 'a' && col > 0)
+                    col--;
+                else if (c == '\n' && table[row * size + col] == ' ')
+                {
+                    table[row * size + col] = 'x';
+                    playerTurn = 0;
+                }
+                else if (c == 'q')
+                    strcpy(info, CARO_INFO_QUIT);
+            }
+        }
+        else
+        {
+            sprintf(send_msg, "%s#%s#%s#%d#%d", SIGNAL_CARO_TURN, id, user, col, row);
+            if (connectToServer() == 0)
+            {
+                str = strtok(recv_msg, token);
+                if (strcmp(str, SIGNAL_CARO_TURN) == 0)
+                {
+                    str = strtok(NULL, token);
+                    col = atoi(str);
+                    str = strtok(NULL, token);
+                    row = atoi(str);
+                    table[row * size + col] = 'o';
+                }
+                else if (strcmp(str, SIGNAL_CARO_WIN) == 0)
+                    strcpy(info, CARO_INFO_WIN);
+                else if (strcmp(str, SIGNAL_CARO_LOST) == 0)
+                {
+                    str = strtok(NULL, token);
+                    col = atoi(str);
+                    str = strtok(NULL, token);
+                    row = atoi(str);
+                    table[row * size + col] = 'o';
+                    strcpy(info, CARO_INFO_LOST);
+                }
+                else if (strcmp(str, SIGNAL_ERROR) == 0)
+                {
+                    str = strtok(NULL, token);
+                    strcpy(error, str);
+                }
+            }
+            playerTurn = 1;
+        }
+    }
+    setDefaultTerminal();
     return 0;
 }
 
@@ -419,35 +837,43 @@ int main(int argc, char *argv[])
             if (menuStart() == -1)
                 break;
             else
-                status = STATUS_FUNGAME_MENU;
+                status = STATUS_ANHTNGAME_MENU;
         }
-        else if (status == STATUS_FUNGAME_MENU)
+        else if (status == STATUS_ANHTNGAME_MENU)
         {
-            if (menuFunGame() == -1)
+            if (menuANHTNGAME() == -1)
                 status = STATUS_START_MENU;
             else
                 status = STATUS_HANDLE_GAME;
         }
         else if (status == STATUS_HANDLE_GAME)
         {
-            if (checkCaroOrTicTacToe == 1)
+            if (checkCaroOrTicTacToe == PLAY_CARO)
             {
-                free(table);
-                table = NULL;
-                status = STATUS_FUNGAME_MENU;
+                if (handleCaroGame() == -1)
+                {
+                    free(table);
+                    table = NULL;
+                    status = STATUS_ANHTNGAME_MENU;
+                }
             }
-            else if (checkCaroOrTicTacToe == 2)
+            // else if (checkCaroOrTicTacToe == PLAY_TICTACTOE)
+            // {
+            //     if (handleTicTacToeGame() == -1)
+            //     {
+            //         status = STATUS_ANHTNGAME_MENU;
+            //     }
+            // }
+            else if (checkCaroOrTicTacToe == CARO_RANKING)
             {
-                printf("hello!\n");
+                handleCaroRanking();
+                status = STATUS_ANHTNGAME_MENU;
             }
-            else if (checkCaroOrTicTacToe == 3)
-            {
-                status = STATUS_FUNGAME_MENU;
-            }
-            else if (checkCaroOrTicTacToe == 4)
-            {
-                status = STATUS_FUNGAME_MENU;
-            }
+            // else if (checkCaroOrTicTacToe == 4)
+            // {
+            //     handleTicTacToeRanking();
+            //     status = STATUS_ANHTNGAME_MENU;
+            // }
         }
     }
     return 0;

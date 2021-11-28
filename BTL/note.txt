@@ -14,3 +14,42 @@ drawTable
 handleCaroGame
 updateTTTResult
 updateCaroRanking
+
+120-> 156:
+  else if (strcmp(str, SIGNAL_TICTACTOE) == 0)
+  {
+    // Handle tic-tac-toe
+    str = strtok(NULL, token);
+    id = str;
+    printf("TicTacToe game with id = %s\n", id);
+    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    send(fd, send_msg, strlen(send_msg), 0);
+  }
+  else if (strcmp(str, SIGNAL_TICTACTOE_AI) == 0)
+  {
+    // Handle tic-tac-toe
+    str = strtok(NULL, token);
+    id = str;
+    printf("TicTacToe game with id = %s, computer is processing...\n", id);
+    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    send(fd, send_msg, strlen(send_msg), 0);
+  }
+  else if (strcmp(str, SIGNAL_TTT_RESULT) == 0)
+  { // 0 hòa, 1 thua, -1 thắng
+    // Handle tic-tac-toe result
+    str = strtok(NULL, token);
+    id = str;
+    str = strtok(NULL, token);
+    tttResult = atoi(str);
+    char resultString[50];
+    if (tttResult == 0)
+      strcpy(resultString, "You Draws");
+    else if (tttResult == 1)
+      strcpy(resultString, "You Lost");
+    else if (tttResult == -1)
+      strcpy(resultString, "You Win");
+    printf("TicTacToe game with id = %s, Result: %s\n", id, resultString);
+    // xu li file TTTranking, update file
+    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    send(fd, send_msg, strlen(send_msg), 0);
+  }
