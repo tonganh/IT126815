@@ -347,6 +347,8 @@ int main(int argc, char *argv[])
 	}
 	int port = atoi(argv[1]);
 
+	printf("port using: %d\n", port);
+
 	FILE *fp;
 
 	fp = fopen("nguoidung.txt", "r+");
@@ -424,6 +426,7 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+
 	return 0;
 }
 
@@ -478,10 +481,11 @@ void *connection_handler(void *socket_desc)
 			// }
 			while (strcmp(passwordWantChange, "bye") != 0)
 			{
-				// if (strcmp(passwordWantChange, "") == 0)
-				// {
-				// 	exit(0);
-				// }
+				if (strcmp(passwordWantChange, "") == 0)
+				{
+					// exit(0);
+					return;
+				}
 
 				actionAfterChangePassword(sock, passwordWantChange, l);
 				// Reset string and listen for next action

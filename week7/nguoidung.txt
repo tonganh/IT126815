@@ -1,4 +1,4 @@
-hust		1
+hust	1	1
 soict	1	0
-1	asd	0
+1	2	1
 2	2	2
