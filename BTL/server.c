@@ -218,15 +218,16 @@ int handleDataFromClient(int fd)
       {
         //write log
         writeLog(info->logfile, col, row, 0);
-        printf("Send a turn : column = %d, row = %d\n", col, row);
-        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN, col, row);
+        // printf("Send a turn : column = %d, row = %d\n", col, row);
+        // sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN, col, row);
+        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN, 1, 1);
         send(fd, send_msg, strlen(send_msg), 0);
       }
       else
       {
         //write log
         writeLog(info->logfile, col, row, 0);
-        printf("Send a turn : column = %d, row = %d\n", col, row);
+        // printf("Send a turn : column = %d, row = %d\n", col, row);
         updateCaroRanking(user, -1); // update caro Ranking, lost = -1
         sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_LOST, col, row);
         send(fd, send_msg, strlen(send_msg), 0);
