@@ -1,0 +1,555 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include "stack.h"
+#include <pthread.h> //for threading , link with lpthread
+
+#define MAXLINE 1024
+#define SUCCESSFULL 1
+#define ERROR 0
+#define SA struct sockaddr
+
+NODE *userLoged = NULL;
+int checkingStatus = 0;
+char passwordDigit[MAXLINE];
+char passwordAlpha[MAXLINE];
+
+struct sockaddr_in servaddr, cliaddr;
+socklen_t len = sizeof(cliaddr);
+int firstCheckInput = 0;
+struct sockaddr_in servaddr, cli;
+char username[MAXLINE];
+char password[MAXLINE];
+char *insertPassword = "Insert Password";
+
+pid_t childpid;
+
+void DNODE(DT x)
+{
+	printf("%-30s%-20s%-15d%-10d\n", x.userName, x.password, x.status, x.totalTimeWrongCode);
+}
+
+void DLIST(LIST *l)
+{
+	NODE *p = l->Head;
+	printf("%-35s%-20s%-15s%-10s\n", "Tên đăng nhập", "Mật khẩu", "Trạng thái", "Số lần đã nhập sai");
+	while (p != NULL)
+	{
+		DNODE(p->x);
+		p = p->next;
+	}
+}
+void Empty(LIST *l)
+{
+	l->Head = NULL;
+}
+
+void writeFileAfterUpdate(LIST *l)
+{
+	FILE *fptr = fopen("nguoidung.txt", "w");
+	NODE *p = l->Head;
+	while (p != NULL)
+	{
+
+		fwrite(p->x.userName, 1, strlen(p->x.userName), fptr);
+		fwrite("\t", 1, 1, fptr);
+
+		fwrite(p->x.password, 1, strlen(p->x.password), fptr);
+		fwrite("\t", 1, 1, fptr);
+
+		char convertTest[5];
+		sprintf(convertTest, "%d", p->x.status);
+		fwrite(convertTest, 1, strlen(convertTest), fptr);
+		if (p->next != NULL)
+		{
+			fwrite("\n", 1, 1, fptr);
+		}
+		p = p->next;
+	}
+	fclose(fptr);
+}
+
+void writeFileHaveErrorCode(LIST *l)
+{
+	FILE *fptr = fopen("nguoidung2.txt", "w");
+	NODE *p = l->Head;
+	while (p != NULL)
+	{
+
+		fwrite(p->x.userName, 1, strlen(p->x.userName), fptr);
+		fwrite("\t", 1, 1, fptr);
+
+		fwrite(p->x.password, 1, strlen(p->x.password), fptr);
+		fwrite("\t", 1, 1, fptr);
+
+		char convertTest[5];
+		sprintf(convertTest, "%d", p->x.status);
+		fwrite(convertTest, 1, strlen(convertTest), fptr);
+
+		fwrite("\t", 1, 1, fptr);
+
+		sprintf(convertTest, "%d", p->x.totalTimeWrongPassword);
+		fwrite(convertTest, 1, strlen(convertTest), fptr);
+		if (p->next != NULL)
+		{
+			fwrite("\n", 1, 1, fptr);
+		}
+
+		p = p->next;
+	}
+	fclose(fptr);
+}
+
+NODE *findAnAccount(LIST *l, char userName[100])
+{
+	NODE *p = l->Head;
+	while (p != NULL)
+	{
+		if (strcmp(userName, p->x.userName) == 0)
+		{
+			return p;
+			break;
+		}
+		p = p->next;
+	}
+	return NULL;
+}
+
+char *convertValue(long status)
+{
+	switch (status)
+	{
+	case ACTIVE:
+		return "1";
+		break;
+
+	case NOT_EXIST:
+		return "3";
+		break;
+
+	case BLOCKED:
+		return "0";
+		break;
+
+	case WRONG_PASSWORD:
+		return "5";
+		break;
+
+	default:
+		return "0";
+		break;
+	}
+}
+
+int encodePassword(char *password)
+{
+
+	int index1 = 0, index2 = 0;
+	memset(passwordAlpha, 0, sizeof(passwordAlpha));
+	memset(passwordDigit, 0, sizeof(passwordDigit));
+
+	for (int i = 0; i < strlen(password); i++)
+	{
+		// Check digit case
+		if (isdigit(password[i]))
+			passwordDigit[index1++] = password[i];
+		else if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z'))
+			passwordAlpha[index2++] = password[i];
+		else
+		{
+			// Wrong case
+			return 0;
+		}
+	}
+	passwordDigit[index1] = '\0';
+	passwordAlpha[index2] = '\0';
+
+	return 1;
+}
+
+int changePassword(char *newPassword, LIST *l)
+{
+
+	if (!encodePassword(newPassword))
+	{
+		return ERROR;
+	}
+	strcpy(userLoged->x.password, newPassword);
+	writeFileAfterUpdate(l);
+	writeFileHaveErrorCode(l);
+	return SUCCESSFULL;
+}
+
+void actionAfterChangePassword(int connect_status, char *newPassword, LIST *l)
+{
+	int changePasswordStatus = changePassword(newPassword, l);
+
+	// In case have special character => out => send error to client
+	if (changePasswordStatus == ERROR)
+	{
+		printf("ERROR\n");
+		write(connect_status, (const char *)"Fail", strlen("Fail"));
+	}
+	else
+	{
+		write(connect_status, (const char *)"successful", strlen("successful"));
+
+		char buff[MAXLINE];
+		memset(buff, '\0', sizeof(buff));
+
+		read(connect_status, (char *)buff, MAXLINE);
+		bzero(buff, MAXLINE);
+
+		// Send message
+
+		if (strlen(passwordAlpha) == 0)
+		{
+			strcpy(passwordAlpha, " ");
+		}
+		write(connect_status, (const char *)passwordAlpha, strlen(passwordAlpha));
+		read(connect_status, (char *)buff, MAXLINE);
+
+		if (strlen(buff) != 0)
+		{
+
+			if (strlen(passwordDigit) == 0)
+			{
+				strcpy(passwordDigit, " ");
+			}
+			write(connect_status, (const char *)passwordDigit, strlen(passwordDigit));
+		}
+		bzero(buff, MAXLINE);
+		bzero(passwordAlpha, MAXLINE);
+		bzero(passwordDigit, MAXLINE);
+	}
+}
+
+// Driver code
+
+void readFile(FILE *f, LIST *l)
+{
+	int lineCheck = 1;
+	while (!feof(f))
+	{
+		DT x;
+		x.totalTimeWrongCode = 0;
+		x.totalTimeWrongPassword = 0;
+
+		fscanf(f, "%s %s %d", x.userName, x.password, &x.status);
+		NODE *checkAccount = findAnAccount(l, x.userName);
+		if (checkAccount != NULL)
+		{
+			printf("\n======================================\n");
+			printf("Username input in line %d have existed. Check you file!\n", lineCheck);
+			printf("======================================\n");
+			exit(0);
+		}
+		Push(l, x);
+		lineCheck++;
+	}
+
+	writeFileHaveErrorCode(l);
+	// printf("\n\nYour file valid! Below is you data after insert:\n\n");
+	// DLIST(l);
+}
+
+// void readFileWithErrorNumber(FILE *f, LIST *l)
+// {
+// 	int lineCheck = 1;
+// 	while (!feof(f))
+// 	{
+// 		DT x;
+// 		x.totalTimeWrongCode = 0;
+// 		x.totalTimeWrongPassword = 0;
+
+// 		fscanf(f, "%s %s %d %d", x.userName, x.password, &x.status, &x.totalTimeWrongPassword);
+// 		NODE *checkAccount = findAnAccount(l, x.userName);
+// 		if (checkAccount != NULL)
+// 		{
+// 			printf("\n======================================\n");
+// 			printf("Username input in line %d have existed. Check you file!\n", lineCheck);
+// 			printf("======================================\n");
+// 			exit(0);
+// 		}
+// 		Push(l, x);
+// 		lineCheck++;
+// 	}
+// 	// printf("\n\nYour file valid! Below is you data after insert:\n\n");
+// 	// DLIST(l);
+// }
+int loginAccount(LIST *l, char *userName, char *password)
+{
+
+	FILE *fp = fopen("nguoidung2.txt", "r+");
+	if (fp == NULL)
+	{
+		perror("Can not open this file. Check again your file name.");
+		exit(0);
+	}
+
+	// readFileWithErrorNumber(fp, l);
+	fclose(fp);
+
+	NODE *user = findAnAccount(l, userName);
+	if (user == NULL)
+	{
+		return NOT_EXIST;
+	}
+
+	if (user->x.status == BLOCKED)
+	{
+		return BLOCKED;
+	}
+
+	if (user->x.totalTimeWrongPassword == 3)
+	{
+		user->x.status = BLOCKED;
+		writeFileAfterUpdate(l);
+		writeFileHaveErrorCode(l);
+		return BLOCKED;
+	}
+
+	if (strcmp(user->x.password, password) == 0)
+	{
+		if (user->x.status != ACTIVE)
+		{
+			return BLOCKED;
+		}
+		user->x.totalTimeWrongPassword = 0;
+		writeFileHaveErrorCode(l);
+		userLoged = user;
+		return ACTIVE;
+	}
+	user->x.totalTimeWrongPassword++;
+	writeFileHaveErrorCode(l);
+	return WRONG_PASSWORD;
+}
+void connection_handler(int client_status);
+
+LIST *l;
+
+int main(int argc, char *argv[])
+{
+	fd_set readfds;
+	int sockfd;
+	int max_sd, new_socket;
+
+	// client socket will storage connect_status, this help we send data to client with same port
+	int client_socket[30], max_clients = 30;
+
+	// init client socket and client status
+	for (int i = 0; i < max_clients; i++)
+	{
+		client_socket[i] = 0;
+	}
+
+	l = (LIST *)malloc(sizeof(LIST));
+	Empty(l);
+
+	if (argc < 2)
+	{
+		printf("Invalid argument. The model using is: ./server {{PORT}}\n");
+		exit(0);
+	}
+	int port = atoi(argv[1]);
+
+	printf("port using: %d\n", port);
+
+	FILE *fp;
+
+	fp = fopen("nguoidung.txt", "r+");
+	if (fp == NULL)
+	{
+		perror("Can not open this file. Check again your file name.");
+		exit(0);
+	}
+	readFile(fp, l);
+	DLIST(l);
+	fclose(fp);
+
+	// int n = 0;
+
+	// Creating socket file descriptor
+	printf("Server started and listen on PORT: %d\n", port);
+	if ((sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+	{
+		perror("socket creation failed");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(&servaddr, 0, sizeof(servaddr));
+	memset(&cliaddr, 0, sizeof(cliaddr));
+
+	// Filling server information
+	servaddr.sin_family = AF_INET; // IPv4
+	servaddr.sin_addr.s_addr = INADDR_ANY;
+	servaddr.sin_port = htons(port);
+
+	// Bind the socket with the server address
+	if (bind(sockfd, (const struct sockaddr *)&servaddr,
+			 sizeof(servaddr)) < 0)
+	{
+		perror("bind failed");
+		exit(EXIT_FAILURE);
+	}
+
+	// Now server is ready to listen and verification
+	if ((listen(sockfd, 5)) != 0)
+	{
+		printf("Listen failed...\n");
+		exit(0);
+	}
+	else
+		printf("Server listening..\n");
+	len = sizeof(cli);
+
+	while (1)
+	{
+		// newSocket = accept(sockfd, (struct sockaddr *)&newAddr, &addr_size);
+		FD_ZERO(&readfds);
+		FD_SET(sockfd, &readfds);
+		max_sd = sockfd;
+
+		for (int i = 0; i < max_clients; i++)
+		{
+			int sd = client_socket[i];
+			if (sd > 0)
+				FD_SET(sd, &readfds);
+			if (sd > max_sd)
+				max_sd = sd;
+		}
+
+		int activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
+		printf("activity: %d\n", activity);
+		if (activity < 0)
+		{
+			printf("Error select.\n");
+			return 0;
+		}
+
+		// Set up
+		if (FD_ISSET(sockfd, &readfds))
+		{
+			if ((new_socket = accept(sockfd, (struct sockaddr *)&cli, &len)) < 0)
+			{
+				printf("Error accept.\n");
+				return 0;
+			}
+			// printf("Connection accepted from %s:%d\n", inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
+			// for (int i = 0; i < max_clients; i++)
+			// {
+			// 	if (client_socket[i] == 0)
+			// 	{
+			// 		client_socket[i] = new_socket;
+			// 		connection_handler(new_socket);
+			// 		break;
+			// 	}
+			// }
+			if ((childpid = fork()) == 0)
+			{
+				close(sockfd);
+				connection_handler(new_socket);
+				exit(0);
+			}
+		}
+		// for (int i = 0; i < max_clients; i++)
+		// {
+		// 	int connect_status = client_socket[i];
+		// 	if (FD_ISSET(connect_status, &readfds))
+		// 	{
+		// 		printf("connect_status: %d\n", connect_status);
+		// 		connection_handler(connect_status);
+		// 		close(connect_status);
+		// 	}
+		// }
+		// if (connect_status < 0)
+		// {
+		// 	exit(1);
+		// }
+		// printf("Connection accepted from %s:%d\n", inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
+
+		// fp = fopen("nguoidung2.txt", "r+");
+		// if (fp == NULL)
+		// {
+		// 	perror("Can not open this file. Check again your file name.");
+		// 	exit(0);
+		// }
+		// // readFileWithErrorNumber(fp, l);
+		// fclose(fp);
+	}
+	close(sockfd);
+	return 0;
+}
+
+void connection_handler(int client_status)
+{
+	char client_message[2000];
+	bzero(client_message, 2000);
+
+	printf("let's go!\n");
+	while (1)
+	{
+		printf("Again\n");
+		// Reset string receive
+		memset(username, 0, sizeof(username));
+		// Recv username
+		read(client_status, (char *)username, MAXLINE);
+		if (strlen(username) == 0)
+		{
+			break;
+		}
+		printf("username: %s\n", username);
+
+		if (strcmp(username, "") == 0)
+		{
+			printf("Turn off server...\n");
+			exit(0);
+		}
+
+		write(client_status, (const char *)insertPassword, strlen(insertPassword));
+
+		memset(password, 0, sizeof(password));
+
+		read(client_status, (char *)password, MAXLINE);
+
+		int i_valueAfterLogin = loginAccount(l, username, password);
+
+		// Check account after submit username and password
+		char *test2 = convertValue(i_valueAfterLogin);
+		write(client_status, (const char *)test2, strlen(test2));
+		char *activeStatus = "1";
+		if (strcmp(test2, activeStatus) == 0)
+		{
+			char passwordWantChange[MAXLINE];
+			memset(passwordWantChange, 0, sizeof(passwordWantChange));
+			// 1st time
+			read(client_status, (char *)passwordWantChange, MAXLINE);
+
+			// if (strcmp(passwordWantChange, "") == 0)
+			// {
+			// 	exit(0);
+			// }
+			while (strcmp(passwordWantChange, "bye") != 0)
+			{
+				if (strcmp(passwordWantChange, "") == 0)
+				{
+					// exit(0);
+					return;
+				}
+
+				actionAfterChangePassword(client_status, passwordWantChange, l);
+				// Reset string and listen for next action
+				bzero(passwordWantChange, sizeof(passwordWantChange));
+				read(client_status, (char *)passwordWantChange, MAXLINE);
+			}
+
+			if (strcmp(passwordWantChange, "bye") == 0)
+			{
+				userLoged = NULL;
+			}
+		}
+	}
+}
