@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "caroranking.h": "c"
+        "caroranking.h": "c",
+        "stdio.h": "c"
     }
 }

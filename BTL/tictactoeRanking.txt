@@ -1,0 +1,5 @@
+dangvietanh 3 2 15 8.5
+nguyenminhtu 5 1 0 4.0
+aaa 1 1 2 1.0
+nnn 11 2 3 10.5
+bbb 2 1 1 1.5

@@ -35,6 +35,9 @@ Library of socket
 #define SIGNAL_CARO_NEWGAME "SIGNAL_CARO_NEWGAME"
 #define SIGNAL_CARO_ABORTGAME "SIGNAL_CARO_ABORTGAME"
 #define SIGNAL_CARO_TURN "SIGNAL_CARO_TURN"
+#define SIGNAL_CARO_TURN_MEDIUM "SIGNAL_CARO_TURN_MEDIUM"
+#define SIGNAL_CARO_TURN_HARD "SIGNAL_CARO_TURN_HARD"
+#define SIGNAL_CARO_TURN "SIGNAL_CARO_TURN"
 #define SIGNAL_CARO_WIN "SIGNAL_CARO_WIN"
 #define SIGNAL_CARO_LOST "SIGNAL_CARO_LOST"
 #define SIGNAL_CARO_VIEWLOG "SIGNAL_CARO_VIEWLOG"
@@ -149,13 +152,50 @@ int handleDataFromClient(int fd)
     // while(1); // test timeout
     send(fd, send_msg, strlen(send_msg), 0);
   }
+  else if (strcmp(str, SIGNAL_TICTACTOE) == 0)
+  {
+    // Handle tic-tac-toe
+    str = strtok(NULL, token);
+    id = str;
+    printf("TicTacToe game with id = %s\n", id);
+    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    send(fd, send_msg, strlen(send_msg), 0);
+  }
+  else if (strcmp(str, SIGNAL_TICTACTOE_AI) == 0)
+  {
+    // Handle tic-tac-toe
+    str = strtok(NULL, token);
+    id = str;
+    printf("TicTacToe game with id = %s, computer is processing...\n", id);
+    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    send(fd, send_msg, strlen(send_msg), 0);
+  }
+  else if (strcmp(str, SIGNAL_TTT_RESULT) == 0)
+  { // 0 hòa, 1 thua, -1 thắng
+    // Handle tic-tac-toe result
+    str = strtok(NULL, token);
+    id = str;
+    str = strtok(NULL, token);
+    tttResult = atoi(str);
+    char resultString[50];
+    if (tttResult == 0)
+      strcpy(resultString, "You Draws");
+    else if (tttResult == 1)
+      strcpy(resultString, "You Lost");
+    else if (tttResult == -1)
+      strcpy(resultString, "You Win");
+    printf("TicTacToe game with id = %s, Result: %s\n", id, resultString);
+    // xu li file TTTranking, update file
+    sprintf(send_msg, "%s#%s", SIGNAL_OK, id);
+    send(fd, send_msg, strlen(send_msg), 0);
+  }
   else if (strcmp(str, SIGNAL_CARO_NEWGAME) == 0)
   {
     // Play new game
-    str = strtok(NULL, token); //get size
+    str = strtok(NULL, token); // get size
     recieved = atoi(str);
-    str = strtok(NULL, token);                                    //get user
-    id = addInfo(inet_ntoa(client_addr.sin_addr), recieved, str); //get id game
+    str = strtok(NULL, token);                                    // get user
+    id = addInfo(inet_ntoa(client_addr.sin_addr), recieved, str); // get id game
     printf("Caro game with id = %s\n", id);
     printf("Caro Game Info: ");
     printInfo(getInfo(id));
@@ -187,7 +227,7 @@ int handleDataFromClient(int fd)
     sprintf(send_msg, "%s#%s#%s", SIGNAL_OK, id, inforUser);
     send(fd, send_msg, strlen(send_msg), 0);
   }
-  else if (strcmp(str, SIGNAL_CARO_TURN) == 0)
+  else if (strcmp(str, SIGNAL_CARO_TURN_HARD) == 0)
   {
     // Quay về server để xử lí game caro
     id = strtok(NULL, token);   // get game id
@@ -196,7 +236,7 @@ int handleDataFromClient(int fd)
     str = strtok(NULL, token); // //get column
     col = atoi(str);
 
-    str = strtok(NULL, token); //get row
+    str = strtok(NULL, token); // get row
     row = atoi(str);
     printf("Received a turn of game id = %s, user = %s : column = %d, row = %d\n", id, user, col, row);
     // set table
@@ -216,18 +256,70 @@ int handleDataFromClient(int fd)
       }
       else if (cpuMove(&col, &row) == 0)
       {
-        //write log
+        // write log
         writeLog(info->logfile, col, row, 0);
-        // printf("Send a turn : column = %d, row = %d\n", col, row);
-        // sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN, col, row);
-        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN, 1, 1);
+        printf("Send a turn : column = %d, row = %d\n", col, row);
+        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN_HARD, col, row);
         send(fd, send_msg, strlen(send_msg), 0);
       }
       else
       {
-        //write log
+        // write log
         writeLog(info->logfile, col, row, 0);
-        // printf("Send a turn : column = %d, row = %d\n", col, row);
+        printf("Send a turn : column = %d, row = %d\n", col, row);
+        updateCaroRanking(user, -1); // update caro Ranking, lost = -1
+        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_LOST, col, row);
+        send(fd, send_msg, strlen(send_msg), 0);
+      }
+    }
+    else
+    {
+      printf("Request a turn of game with id = %s REQUEST FAILED!\n", id);
+      sprintf(send_msg, "%s#%s%s%s", SIGNAL_ERROR, "Game with id=", id, "not existed");
+      send(fd, send_msg, strlen(send_msg), 0);
+    }
+  }
+  else if (strcmp(str, SIGNAL_CARO_TURN_MEDIUM) == 0)
+  {
+    // Quay về server để xử lí game caro
+    id = strtok(NULL, token);   // get game id
+    user = strtok(NULL, token); // get user name
+
+    str = strtok(NULL, token); // //get column
+    col = atoi(str);
+
+    str = strtok(NULL, token); // get row
+    row = atoi(str);
+    printf("Received a turn of game id = %s, user = %s : column = %d, row = %d\n", id, user, col, row);
+    // set table
+    info = getInfo(id);
+    if (info != NULL)
+    {
+      setTable(info->table, info->size, -99, -100);
+      // write log
+      writeLog(info->logfile, col, row, 1);
+      // player win
+      if (playerMove(col, row) == 1)
+      {
+        printf("Player win\n");
+        updateCaroRanking(user, 1); // update caro Ranking, win = 1
+        strcpy(send_msg, SIGNAL_CARO_WIN);
+        send(fd, send_msg, strlen(send_msg), 0);
+      }
+      else if (cpuMoveMedium(&col, &row) == 0)
+      {
+        // write log
+        writeLog(info->logfile, col, row, 0);
+        printf("Send a turn : column = %d, row = %d\n", col, row);
+        printf("here\n");
+        sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_TURN_MEDIUM, col, row);
+        send(fd, send_msg, strlen(send_msg), 0);
+      }
+      else
+      {
+        // write log
+        writeLog(info->logfile, col, row, 0);
+        printf("Send a turn : column = %d, row = %d\n", col, row);
         updateCaroRanking(user, -1); // update caro Ranking, lost = -1
         sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_LOST, col, row);
         send(fd, send_msg, strlen(send_msg), 0);
@@ -314,7 +406,7 @@ int main(int argc, char *argv[])
     exit(-2);
   }
 
-  //Step 2: Bind address to socket
+  // Step 2: Bind address to socket
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(PORT);
   server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -326,7 +418,7 @@ int main(int argc, char *argv[])
     exit(-3);
   }
 
-  //Step 3: Listen request from client
+  // Step 3: Listen request from client
   if (listen(sock, 5) == -1)
   {
     perror("Listen error\n");
@@ -342,7 +434,7 @@ int main(int argc, char *argv[])
   struct timeval timeout;
   timeout.tv_sec = 1000; // after 1000 seconds will timeout
   timeout.tv_usec = 0;
-  //Step 4: Communicate with clients
+  // Step 4: Communicate with clients
   while (1)
   {
     read_fds = master;

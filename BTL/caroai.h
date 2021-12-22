@@ -8,7 +8,7 @@ int max(int a, int b);
 
 int min(int a, int b);
 
-void setTable(char* t, int s, int p, int c);
+void setTable(char *t, int s, int p, int c);
 
 int isNullCell(int col, int row);
 
@@ -23,3 +23,5 @@ int isWin(int col, int row, int player);
 int playerMove(int col, int row);
 
 int cpuMove(int *col, int *row);
+
+int cpuMoveMedium(int *col, int *row);
