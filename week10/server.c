@@ -5,7 +5,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include "stack.h"
-#include <pthread.h> //for threading , link with lpthread
+#include <sys/ioctl.h>
+#include <sys/poll.h>
 
 #define MAXLINE 1024
 #define SUCCESSFULL 1

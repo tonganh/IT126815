@@ -438,6 +438,16 @@ int main(int argc, char *argv[])
 				printf("Error accept.\n");
 				return 0;
 			}
+			// printf("Connection accepted from %s:%d\n", inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
+			// for (int i = 0; i < max_clients; i++)
+			// {
+			// 	if (client_socket[i] == 0)
+			// 	{
+			// 		client_socket[i] = new_socket;
+			// 		connection_handler(new_socket);
+			// 		break;
+			// 	}
+			// }
 			if ((childpid = fork()) == 0)
 			{
 				close(sockfd);
@@ -445,6 +455,30 @@ int main(int argc, char *argv[])
 				exit(0);
 			}
 		}
+		// for (int i = 0; i < max_clients; i++)
+		// {
+		// 	int connect_status = client_socket[i];
+		// 	if (FD_ISSET(connect_status, &readfds))
+		// 	{
+		// 		printf("connect_status: %d\n", connect_status);
+		// 		connection_handler(connect_status);
+		// 		close(connect_status);
+		// 	}
+		// }
+		// if (connect_status < 0)
+		// {
+		// 	exit(1);
+		// }
+		// printf("Connection accepted from %s:%d\n", inet_ntoa(cli.sin_addr), ntohs(cli.sin_port));
+
+		// fp = fopen("nguoidung2.txt", "r+");
+		// if (fp == NULL)
+		// {
+		// 	perror("Can not open this file. Check again your file name.");
+		// 	exit(0);
+		// }
+		// // readFileWithErrorNumber(fp, l);
+		// fclose(fp);
 	}
 	close(sockfd);
 	return 0;
