@@ -124,7 +124,7 @@ int connectToServer()
 
     // set timeout
     struct timeval timeout;
-    timeout.tv_sec = 20; // after 20 seconds connect will timeout
+    timeout.tv_sec = 5; // after 20 seconds connect will timeout
     timeout.tv_usec = 0;
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
     {
@@ -202,6 +202,7 @@ int menuSignin()
 
         // check username and password
         sprintf(send_msg, "%s#%s#%s", SIGNAL_CHECKLOGIN, user, pass);
+        // printf("connectToServer() %d\n", connectToServer());
         if (connectToServer() == 0)
         {
             str = strtok(recv_msg, token);

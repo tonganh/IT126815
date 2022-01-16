@@ -64,8 +64,14 @@ char send_msg[BUFF_SIZE], recv_msg[BUFF_SIZE];
 char token[] = "#";
 char *str;
 int tttResult;
-
-void updateCaroRanking(char *user, int winOrLost)
+/**
+ * @brief
+ *
+ * @param user thông tin của user
+ * @param winOrLost win là 1. lost là -1, draw - hòa là 0
+ * @param level độ khó của game, mặc định 1 là hard, 2 là medium. SẼ liên quan đến trọng số
+ */
+void updateCaroRanking(char *user, int winOrLost, int level)
 {
   readFileCaroRanking();
   caronode *tmp = checkUserCaro(user);
@@ -84,20 +90,47 @@ void updateCaroRanking(char *user, int winOrLost)
 
   if (winOrLost == 1)
   { // 0 hòa, -1 thua, 1 thắng
+    float percentUsing;
+    if (level == 1)
+    {
+      percentUsing = 1.5;
+    }
+    else
+    {
+      percentUsing = 1;
+    }
     tmp->user.numberOfWin++;
-    tmp->user.point++;
+    tmp->user.point = tmp->user.point + percentUsing;
     updateFileCaroRanking();
   }
   else if (winOrLost == -1)
   {
-    tmp->user.numberOfLose++;
+    float percentUsing;
+    if (level == 1)
+    {
+      percentUsing = 1.5;
+    }
+    else
+    {
+      percentUsing = 1;
+    }
+    tmp->user.numberOfLose = tmp->user.numberOfLose - percentUsing;
     tmp->user.point--;
     updateFileCaroRanking();
   }
   else if (winOrLost == 0)
   {
+    float percentUsing;
+    if (level == 1)
+    {
+      percentUsing = 1.5;
+    }
+    else
+    {
+      percentUsing = 1;
+    }
     tmp->user.numberOfDraws++;
-    tmp->user.point = tmp->user.point + 0.5;
+    tmp->user.point = tmp->user.point + 0.5 * percentUsing;
     updateFileCaroRanking();
   }
 
@@ -250,7 +283,7 @@ int handleDataFromClient(int fd)
       if (playerMove(col, row) == 1)
       {
         printf("Player win\n");
-        updateCaroRanking(user, 1); // update caro Ranking, win = 1
+        updateCaroRanking(user, 1, 1); // update caro Ranking, win = 1
         strcpy(send_msg, SIGNAL_CARO_WIN);
         send(fd, send_msg, strlen(send_msg), 0);
       }
@@ -267,7 +300,7 @@ int handleDataFromClient(int fd)
         // write log
         writeLog(info->logfile, col, row, 0);
         printf("Send a turn : column = %d, row = %d\n", col, row);
-        updateCaroRanking(user, -1); // update caro Ranking, lost = -1
+        updateCaroRanking(user, -1, 1); // update caro Ranking, lost = -1
         sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_LOST, col, row);
         send(fd, send_msg, strlen(send_msg), 0);
       }
@@ -302,7 +335,7 @@ int handleDataFromClient(int fd)
       if (playerMove(col, row) == 1)
       {
         printf("Player win\n");
-        updateCaroRanking(user, 1); // update caro Ranking, win = 1
+        updateCaroRanking(user, 1, 2); // update caro Ranking, win = 1
         strcpy(send_msg, SIGNAL_CARO_WIN);
         send(fd, send_msg, strlen(send_msg), 0);
       }
@@ -320,7 +353,7 @@ int handleDataFromClient(int fd)
         // write log
         writeLog(info->logfile, col, row, 0);
         printf("Send a turn : column = %d, row = %d\n", col, row);
-        updateCaroRanking(user, -1); // update caro Ranking, lost = -1
+        updateCaroRanking(user, -1, 2); // update caro Ranking, lost = -1
         sprintf(send_msg, "%s#%d#%d", SIGNAL_CARO_LOST, col, row);
         send(fd, send_msg, strlen(send_msg), 0);
       }

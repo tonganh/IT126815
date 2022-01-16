@@ -86,7 +86,6 @@ void updateFileCaroRanking()
   caronode *p;
   for (p = caroroot; p != NULL; p = p->next)
   {
-    printf("hahaha\n");
     fprintf(f, "%s %d %d %d %.1f\n", p->user.username, p->user.numberOfWin, p->user.numberOfLose, p->user.numberOfDraws, p->user.point);
   }
   fclose(f);
